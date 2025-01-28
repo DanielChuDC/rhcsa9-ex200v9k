@@ -73,7 +73,8 @@ Step 4. Setup vagrant user with an insecure ssh keypair, so Vagrant is able to s
 - You can generate a key by `ssh-keygen -f vagrantKey`
 
 
-- Warning: do not use this key to any production server! the key has been uploaded to Github.
+- Warning: do not use this key to any production server! the key has been uploaded to Github. Source: https://developer.hashicorp.com/vagrant/docs/providers/vmware/boxes
+
 
 ```bash
 
@@ -81,7 +82,9 @@ Step 4. Setup vagrant user with an insecure ssh keypair, so Vagrant is able to s
 mkdir .ssh
 chmod 0700 .ssh
 cd .ssh/
-wget https://raw.githubusercontent.com/DanielChuDC/rhcsa9-ex200v9k/refs/heads/main/lab_setup/rhcsa9env-master/vagrantKey.pub -O authorized_keys
+wget https://raw.githubusercontent.com/hashicorp/vagrant/refs/heads/main/keys/vagrant.pub -O authorized_keys
+
+
 chmod 0600 authorized_keys
 ```
 
@@ -94,7 +97,160 @@ to
 %wheel ALL=(ALL) NOPASSWD: ALL
 ```
 
+Unregister the rhel account and remove log history
+
+```
+sudo subscription-manager register --username <redhat_account_username> --password <redhat_account_password> --auto-attach
+
+
+Unregister the system from the Red Hat subscription:
+sudo subscription-manager unregister
+
+Remove subscription manager configurations and history:
+sudo subscription-manager clean
+
+(Optional) Remove the log files related to subscription manager:
+sudo rm -rf /var/log/rhsm/*
+
+```
+
+
+# Clear bash History for All Users: For each user, clear the bash history:
+
+```bash
+for user in $(awk -F':' '{ print $1}' /etc/passwd); do
+    home_dir=$(getent passwd $user | cut -d: -f6)
+    if [ -d "$home_dir" ]; then
+        sudo rm -f "$home_dir/.bash_history"
+        sudo touch "$home_dir/.bash_history"
+    fi
+done
+history -c
+history -w
+
+```
+Clear System-Wide Logs: Use these commands to clear system logs:
+
+```bash
+sudo rm -rf /var/log/*
+sudo journalctl --rotate
+sudo journalctl --vacuum-time=1s
+```
+
+Clear bash History of the Current Session: For the active session:
+
+```
+history -c
+history -w
+```
+
+Remove Users' Command History from /root and /home
+```
+sudo find /root /home -name ".bash_history" -type f -exec rm -f {} \;
+
+
+```
+
+
+---
+
+
 The VM is now ready to be exported to a vagrant box. First shutdown the VM and then on your own computer (i.e. not in the VM) run the following commands
+
+- Export it into OVF
+
+```bash
+cd '/Applications/VMware Fusion.app/Contents/Library'
+cd 'VMware OVF Tool'
+
+
+# example
+#  ./ovftool --acceptAllEulas --noSSLVerify <source_path_to_vm>.vmx <destination_path>
+
+./ovftool --acceptAllEulas --noSSLVerify  "$HOME/Virtual Machines.localized/rhel9-arm.vmwarevm/rhel9-arm.vmx" ~/Downloads/rhel9-arm-1.ovf
+
+
+```
+
+
+- Use vagrant 
+
+Create a Vagrant Box from OVF
+the --base option in vagrant package is typically for VirtualBox
+
+For VMware, already exported the VM as rhel9-arm.ovf (along with the VMDK and MF files), run the command below to pack
+
+
+Command:
+
+```bash
+vagrant package --base ./rhel9-arm.ovf --output rhel9-arm.box --provider vmware_desktop
+
+
+cd  "$HOME/Virtual Machines.localized/rhel9-arm.vmwarevm/rhel9-arm.vmx"
+
+cp -r * /vmwarevmx
+
+tee metadata.json <<EOF
+{
+  "provider": "vmware_desktop"
+}
+EOF
+
+
+cd /
+
+# remove the lock file
+rm *.lck 
+
+# include the contents of the ovf/ directory in the .tar.gz file but exclude the directory name itself
+tar cvzf rhel9-arm.vmware.box -C vmwarevmx .
+# tar cvzf rhel9-arm.vmware.box -C ovf .  # A "vmx" file was not found in the box specified. A "vmx" file is required to clone, boot, and manage VMware machines. 
+
+md5 rhel9-arm.vmware.box
+# MD5 (rhel9-arm.vmware.box) = 3ed2a6b4dd37b48c580eec87469cdd09
+
+# metadata.json file used with the vagrant box add
+tee metadata.json << EOF
+{
+  "name": "dc/rhel9-arm",
+  "description": "rhel 9 arm version.",
+  "versions": [
+    {
+      "version": "0.1.0",
+      "providers": [
+        {
+          "name": "vmware_desktop",
+          "url": "file:///$HOME/Documents/GitHub/rhcsa9-ex200v9k/lab_setup/rhcsa9env-master/rhel9-arm.vmware.box",
+          "checksum_type": "md5",
+          "checksum": "3ed2a6b4dd37b48c580eec87469cdd09"
+        }
+      ]
+    }
+  ]
+}
+EOF
+
+# Add the Vagrant Box
+# Once the box is packaged, you need to add it to Vagrant using:
+
+vagrant box add metadata.json --provider vmware_desktop --force
+
+vagrant init dc/rhel9-arm
+
+VAGRANT_VAGRANTFILE=Vagrantfile.vmware-arm vagrant up 
+
+
+# --- To use local box 
+
+Vagrant.configure("2") do |config|
+  config.vm.box = "dc/rhel9-arm"
+end
+
+
+```
+
+
 ```
 vagrant package --base <vm_name_in_virtualbox>
 vagrant box add --name rhel7 package.box
@@ -106,3 +262,10 @@ That’s all it takes! Now the new RedHat machine can be utilized with Vagrant. 
 vagrant init rhel7
 vagrant up
 ```
+
+
+
+
+### Reference:
+
+https://stackoverflow.com/questions/38056018/how-do-i-set-the-version-of-vagrant-box-created-with-vmware-fusion-using-a-meta

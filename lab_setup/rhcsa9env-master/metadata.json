@@ -1,0 +1,17 @@
+{
+  "name": "dc/rhel9-arm",
+  "description": "rhel 9 arm version.",
+  "versions": [
+    {
+      "version": "0.1.0",
+      "providers": [
+        {
+          "name": "vmware_desktop",
+          "url": "file:////Users/jiahao/Documents/GitHub/rhcsa9-ex200v9k/lab_setup/rhcsa9env-master/rhel9-arm.vmware.box",
+          "checksum_type": "md5",
+          "checksum": "3ed2a6b4dd37b48c580eec87469cdd09"
+        }
+      ]
+    }
+  ]
+}
