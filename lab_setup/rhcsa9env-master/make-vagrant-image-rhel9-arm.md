@@ -70,13 +70,18 @@ The installer should now be available in your guest OS under drive
 
 Step 4. Setup vagrant user with an insecure ssh keypair, so Vagrant is able to ssh into our VM.
 
+- You can generate a key by `ssh-keygen -f vagrantKey`
+
+
 - Warning: do not use this key to any production server! the key has been uploaded to Github.
 
 ```bash
+
+
 mkdir .ssh
 chmod 0700 .ssh
 cd .ssh/
-wget https://raw.githubusercontent.com/mitchellh/vagrant/master/keys/vagrant.pub -O authorized_keys
+wget https://raw.githubusercontent.com/DanielChuDC/rhcsa9-ex200v9k/refs/heads/main/lab_setup/rhcsa9env-master/vagrantKey.pub -O authorized_keys
 chmod 0600 authorized_keys
 ```
 
