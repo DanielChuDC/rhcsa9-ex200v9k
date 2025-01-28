@@ -61,12 +61,32 @@ Vagrant.configure(VAGRANTFILE_API_VERSION) do |config|
     repo.vm.box = "generic/rhel9"
     repo.vm.hostname = "repo.example.com"
     # Network and port forwarding for repo
-    repo.vm.network :forwarded_port, g0000uest: 22, host: 8080  # Unique port for repo
+    # repo.vm.network :forwarded_port, g0000uest: 22, host: 8080  # Unique port for repo
     # repo.vm.network "private_network", ip: "192.168.55.149"
 
-    repo.vm.provider "qemu" do |qemu|
-      qemu.memory = "1024"
+    repo.vm.provider "qemu" do |qemu, override|
+      qemu.ssh_port = 50023
+      qemu.memory = 1024
+      qemu.cpus = 1
+      qemu.disk_size = '10G'
+
+      # Network configuration for server1
+      override.ssh.username = "vagrant"
+      override.ssh.password = "vagrant"
+      qemu.net_device = "virtio-net-pci"
+      qemu.extra_netdev_args = "net=192.168.51.0/24,dhcpstart=192.168.51.150"
+      # qemu.network = "private_network, ip=192.168.55.150"
+      # qemu.qemu_dir = "/usr/local/share/qemu"
+      qemu.cpu = "max"
+      qemu.smp = "cpus=2,sockets=1,cores=2,threads=1"
+      qemu.arch = "x86_64"
+      qemu.machine = "q35"
     end
+
+    repo.vm.provision "setup", type: "shell", preserve_order: true, inline: <<-EOF
+          echo "Install OpenSSH"
+          yum -y install openssh
+    EOF
 
     # Provisioning for repo server
     repo.vm.provision :shell, :inline => "sudo rm -rf /EMPTY", run: "always"
@@ -77,35 +97,42 @@ Vagrant.configure(VAGRANTFILE_API_VERSION) do |config|
     repo.vm.synced_folder ".", "/vagrant", type: "rsync", rsync__exclude: [".git/", "disk-0-1.vdi", "disk-0-2.vdi", ".github"]
   end
 
-  # Server 1 Configuration
-  config.vm.define "server1" do |server1|
-    server1.vm.box = "generic/rhel9"
+  # # Server 1 Configuration
+  # config.vm.define "server1" do |server1|
+  #   server1.vm.box = "generic/rhel9"
 
-    # Network and port forwarding for server1
-    server1.vm.network :forwarded_port, guest: 22, host: 50028  # Unique port for server1
+  #   # Network and port forwarding for server1
+  #   # server1.vm.network :forwarded_port, guest: 22, host: 50028  # Unique port for server1
 
-    # server1.vm.network "private_network", ip: "192.168.55.150"
+  #   # server1.vm.network "private_network", ip: "192.168.55.150"
     
 
-    server1.vm.provider "qemu" do |qemu|
-      qemu.memory = 1024
-      qemu.cpus = 1
-      qemu.disk_size = '10G'
+  #   server1.vm.provider "qemu" do |qemu|
+  #     qemu.memory = 1024
+  #     qemu.cpus = 1
+  #     qemu.disk_size = '10G'
 
-      # Network configuration for server1
-      qemu.network = "private_network, ip=192.168.55.150"
-    end
+  #     # Network configuration for server1
+  #     qemu.net_device = "virtio-net-pci"
+  #     qemu.extra_netdev_args = "net=192.168.51.0/24,dhcpstart=192.168.51.150"
+  #     # qemu.network = "private_network, ip=192.168.55.150"
+  #     qemu.qemu_dir = "/usr/local/share/qemu"
+  #     qemu.cpu = "max"
+  #     qemu.smp = "cpus=2,sockets=1,cores=2,threads=1"
+  #     qemu.arch = "x86_64"
+  #     qemu.machine = "q35"
+  #   end
 
-    # Provisioning for server1
-    server1.vm.provision :ansible_local do |ansible|
-      ansible.playbook = "/vagrant/playbooks/master.yml"
-      ansible.install = false
-      ansible.compatibility_mode = "2.0"
-      ansible.inventory_path = "/vagrant/inventory"
-      ansible.config_file = "/vagrant/ansible.cfg"
-      ansible.limit = "all"
-    end
+  #   # Provisioning for server1
+  #   server1.vm.provision :ansible_local do |ansible|
+  #     ansible.playbook = "/vagrant/playbooks/master.yml"
+  #     ansible.install = false
+  #     ansible.compatibility_mode = "2.0"
+  #     ansible.inventory_path = "/vagrant/inventory"
+  #     ansible.config_file = "/vagrant/ansible.cfg"
+  #     ansible.limit = "all"
+  #   end
 
-    server1.vm.provision :shell, :inline => "reboot", run: "always"
-  end
+  #   server1.vm.provision :shell, :inline => "reboot", run: "always"
+  # end
 end

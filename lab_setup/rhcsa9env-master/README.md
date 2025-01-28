@@ -5,28 +5,62 @@ _Powered by Ansible and Vagrant_
 ## macOS
 _Gatekeeper will block virtualbox from installing. All you have to do is go into Security & Privacy of System Preferences and click Allow under the General tab and rerun installation._
 ##### Install all at once with the command below:
-```
+
+```bash
 /usr/bin/ruby -e "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/master/install)" && xcode-select --install 
 
 brew install ansible ; 
 brew install python ; 
 
-brew install --cask vagrant ; 
-
 export VAGRANT_DISABLE_STRICT_DEPENDENCY_ENFORCEMENT=1;
 
-brew tap hashicorp/tap
-brew install hashicorp/tap/hashicorp-vagrant
+brew install --cask vagrant; # this will install v2.4.3
 
+
+---
+
+# VirtualBox
+
+VAGRANT_VAGRANTFILE=Vagrantfile.virtualbox vagrant up
+
+---
+
+# VMWare
 vagrant plugin install vagrant-guest_ansible
 vagrant plugin install vagrant-vmware-desktop
 
+VAGRANT_VAGRANTFILE=Vagrantfile.vmware vagrant up
 
-QEMU (Libvirt)
+
+---
+
+# QEMU # failed with all rhel 9 
 brew install qemu
 
 vagrant plugin install vagrant-qemu
 
+VAGRANT_VAGRANTFILE=Vagrantfile.qemu vagrant up
+
+
+---
+
+# Libvirt
+
+- Libvirt using qemu / kvm for hypervisor
+
+brew install  libvirt
+brew install libvirt qemu virt-manager
+brew services start libvirt
+
+vagrant plugin install vagrant-libvirt
+
+VAGRANT_VAGRANTFILE=Vagrantfile-libvirt vagrant up --provider=libvirt
+
+vagrant --version
+vagrant plugin install vagrant-libvirt
+brew install  libvirt
+brew services start libvirt
+virsh --connect qemu:///system list --all
 
 
 ```
